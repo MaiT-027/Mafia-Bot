@@ -2,7 +2,6 @@ import {
   Client,
   DMChannel,
   EmbedBuilder,
-  MembershipScreeningFieldType,
   Message,
   MessageCollector,
   User,
