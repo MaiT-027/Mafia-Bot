@@ -1,8 +1,9 @@
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
 import token from "./auth";
-import startGame from "./game";
+import initGame from "./game";
 
 const prefix = "!";
+let currentGamingGuildList: string[] = [];
 
 const client = new Client({
   intents: [
@@ -12,6 +13,7 @@ const client = new Client({
     GatewayIntentBits.GuildEmojisAndStickers,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessageReactions,
   ],
 });
 
@@ -24,7 +26,15 @@ client.on("messageCreate", async (message) => {
 
   switch (content) {
     case "시작":
-      startGame(client, message);
+      initGame(client, message, currentGamingGuildList);
+      break;
+    case "help":
+    case "명령어":
+      const embed = new EmbedBuilder({ title: "명령어" }).addFields({
+        name: "시작",
+        value: "게임을 시작합니다. 8명이 필요합니다.",
+      });
+      message.channel.send({ embeds: [embed] });
       break;
   }
 });

@@ -16,6 +16,7 @@ const discord_js_1 = require("discord.js");
 const auth_1 = __importDefault(require("./auth"));
 const game_1 = __importDefault(require("./game"));
 const prefix = "!";
+let currentGamingGuildList = [];
 const client = new discord_js_1.Client({
     intents: [
         discord_js_1.GatewayIntentBits.Guilds,
@@ -24,6 +25,7 @@ const client = new discord_js_1.Client({
         discord_js_1.GatewayIntentBits.GuildEmojisAndStickers,
         discord_js_1.GatewayIntentBits.GuildMessageReactions,
         discord_js_1.GatewayIntentBits.DirectMessages,
+        discord_js_1.GatewayIntentBits.DirectMessageReactions,
     ],
 });
 client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, function* () {
@@ -37,7 +39,15 @@ client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, functi
     const content = message.content.replace("!", "").toLowerCase();
     switch (content) {
         case "시작":
-            (0, game_1.default)(client, message);
+            (0, game_1.default)(client, message, currentGamingGuildList);
+            break;
+        case "help":
+        case "명령어":
+            const embed = new discord_js_1.EmbedBuilder({ title: "명령어" }).addFields({
+                name: "시작",
+                value: "게임을 시작합니다. 8명이 필요합니다.",
+            });
+            message.channel.send({ embeds: [embed] });
             break;
     }
 }));

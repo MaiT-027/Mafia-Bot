@@ -18,6 +18,7 @@ const jobList = {
     DOCTOR: 3,
     POLICE: 4,
 };
+const voteEmoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
 function generateUniqueRandomNumbers(max, count) {
     const numbers = [];
     while (numbers.length < count) {
@@ -35,8 +36,7 @@ function timeout(time) {
         }, time);
     });
 }
-let currentGamingGuildList = [];
-function initGame(client, message) {
+function initGame(client, message, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
         if (currentGamingGuildList.includes(message.guildId)) {
             message.channel.send("서버에 이미 게임이 진행중입니다.");
@@ -61,7 +61,8 @@ function initGame(client, message) {
         collector.on("end", (collected) => {
             if (membersID.length == MAX_PLAYERS) {
                 message.channel.send("게임이 시작됩니다.");
-                progressGame(client, message, membersID);
+                decideJob(client, message, membersID, currentGamingGuildList);
+                console.log(`${message.guild.name} 서버에서 게임이 시작되었습니다.`);
             }
             else {
                 message.channel.send(`인원이 부족하여 게임을 시작할 수 없습니다. (${MAX_PLAYERS - collected.size}명 부족)`);
@@ -70,7 +71,7 @@ function initGame(client, message) {
         });
     });
 }
-function progressGame(client, message, membersID) {
+function decideJob(client, message, membersID, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
         let memberObjects = [];
         const rand_numbers = generateUniqueRandomNumbers(MAX_PLAYERS, MAX_PLAYERS);
@@ -110,10 +111,10 @@ function progressGame(client, message, membersID) {
             .username}은(는) 마피아입니다.`);
         message.channel.send("직업이 모두 결정되었습니다. 10초 후 게임이 시작됩니다.");
         yield timeout(10000);
-        yield Day(message, memberObjects);
+        yield Day(message, memberObjects, currentGamingGuildList);
     });
 }
-function Day(message, memberObjects) {
+function Day(message, memberObjects, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
         message.channel.send("아침이 밝았습니다. 2분 동안 자유토론을 할 수 있습니다.");
         message.channel.send("아침을 스킵하시려면 과반수 이상이 채팅에 '!스킵'을 입력해주세요.");
@@ -123,7 +124,9 @@ function Day(message, memberObjects) {
                 return msg.content === "!스킵" && !skipList.includes(msg.author.id);
             },
             time: 120000,
-            max: MAX_PLAYERS % 2 == 0 ? MAX_PLAYERS / 2 : MAX_PLAYERS / 2 + 1,
+            max: memberObjects.length % 2 == 0
+                ? memberObjects.length / 2
+                : memberObjects.length / 2 + 1,
         });
         skipCollector.on("collect", (msg, _collection) => {
             skipList.push(msg.author.id);
@@ -131,15 +134,14 @@ function Day(message, memberObjects) {
         });
         skipCollector.on("end", (_collected) => {
             message.channel.send("아침이 끝났습니다. 투표가 진행됩니다.");
-            Vote(message, memberObjects);
+            Vote(message, memberObjects, currentGamingGuildList);
         });
     });
 }
-const voteEmoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
-function Vote(msg, memberObjects) {
+function Vote(msg, memberObjects, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
         const embed = new discord_js_1.EmbedBuilder({
-            title: "투표",
+            title: "투표 (30초)",
             description: "추방할 사람의 번호에 맞는 이모티콘을 눌러주세요.",
         }).addFields(memberObjects.map((member, i) => {
             return { name: member.user.username, value: `${i + 1}번` };
@@ -148,6 +150,102 @@ function Vote(msg, memberObjects) {
         for (let i = 0; i < memberObjects.length; i++) {
             embeddedMessage.react(voteEmoji[i]);
         }
+        let votedMember = [];
+        const votedAmount = new Array(memberObjects.length).fill(0);
+        const voteEmojiCollector = new discord_js_2.ReactionCollector(embeddedMessage, {
+            filter: (reaction, user) => {
+                return voteEmoji.includes(reaction.emoji.name) && !user.bot;
+            },
+            time: 30000,
+            dispose: true,
+        });
+        voteEmojiCollector.on("collect", (reaction, user) => {
+            if (votedMember.some((member) => member.user_id === user.id))
+                return;
+            votedAmount[voteEmoji.indexOf(reaction.emoji.name)]++;
+            votedMember.push({
+                user_id: user.id,
+                voted: voteEmoji.indexOf(reaction.emoji.name),
+            });
+            msg.channel.send(`${user.username}님이 ${voteEmoji.indexOf(reaction.emoji.name) + 1}번에 투표하셨습니다.`);
+        });
+        voteEmojiCollector.on("remove", (reaction, user) => {
+            if (votedMember.find((element) => {
+                return element.user_id === user.id;
+            }) === undefined) {
+                return;
+            }
+            if (votedMember.find((element) => {
+                return element.user_id === user.id;
+            }).voted !== voteEmoji.indexOf(reaction.emoji.name)) {
+                return;
+            }
+            votedMember = votedMember.filter((element) => element.user_id !== user.id);
+            votedAmount[voteEmoji.indexOf(reaction.emoji.name)]--;
+            msg.channel.send(`${user.username}님이 ${voteEmoji.indexOf(reaction.emoji.name) + 1}번 투표를 취소했습니다.`);
+        });
+        voteEmojiCollector.on("end", (_collected) => {
+            msg.channel.send("투표 종료. 결과를 계산 중입니다...");
+            let max_vote = 0;
+            let dropped_list = [];
+            for (let i = 0; i < memberObjects.length; i++) {
+                if (votedAmount[i] > max_vote) {
+                    max_vote = votedAmount[i];
+                    dropped_list = [];
+                    dropped_list.push(memberObjects[i]);
+                }
+                else if (votedAmount[i] == max_vote) {
+                    dropped_list.push(memberObjects[i]);
+                }
+            }
+            if (max_vote == 0)
+                dropped_list = [];
+            if (dropped_list.length == 1) {
+                //최다 득표가 1명(추방)
+                msg.channel.send(`${dropped_list[0].user.username}님이 최다 득표로 추방되었습니다. (${max_vote}표)`);
+                if (dropped_list[0].job == jobList.MAFIA_1 ||
+                    dropped_list[0].job == jobList.MAFIA_2) {
+                    msg.channel.send("그는 마피아였습니다.");
+                }
+                memberObjects = memberObjects.filter((object) => {
+                    return object !== dropped_list[0];
+                });
+            }
+            else if (dropped_list.length > 1) {
+                //최다 득표가 여러 명
+                msg.channel.send(`${dropped_list.length}명의 최다 득표자가 나와 투표가 무효 처리되었습니다. (${max_vote}표)`);
+            }
+            else {
+                //득표 없음(기권)
+                msg.channel.send("투표가 0표이므로 자동 기권 처리됩니다.");
+            }
+            checkFinish(msg, memberObjects, currentGamingGuildList);
+        });
     });
+}
+function checkFinish(msg, memberObjects, currentGamingGuildList) {
+    let mafia_num = 0;
+    for (let i = 0; i < memberObjects.length; i++) {
+        if (memberObjects[i].job == jobList.MAFIA_1 ||
+            memberObjects[i].job == jobList.MAFIA_2) {
+            mafia_num++;
+        }
+    }
+    let civilian_num = memberObjects.length - mafia_num;
+    if (mafia_num >= civilian_num || mafia_num == 0) {
+        //게임 종료
+        let gameOverMessage = "게임이 종료되었습니다. ";
+        const mafia_win = mafia_num == 0 ? false : true;
+        if (mafia_win) {
+            gameOverMessage +=
+                "마피아 승리 (시민의 수가 마피아보다 적거나 같습니다.)";
+        }
+        else {
+            gameOverMessage += "시민팀 승리 (마피아가 전부 제거되었습니다.)";
+        }
+        msg.channel.send(gameOverMessage);
+        currentGamingGuildList.splice(currentGamingGuildList.indexOf(msg.guildId), 1);
+        console.log(`${msg.guild.name} 서버에서 게임이 종료되었습니다.`);
+    }
 }
 exports.default = initGame;
