@@ -456,15 +456,8 @@ export async function Night_Mafia(
       );
     }
 
-    emojiCollectorList[i].on("collect", async (reaction, user) => {
+    emojiCollectorList[i].on("collect", async (reaction, _user) => {
       votedAmount.push(voteEmoji.indexOf(reaction.emoji.name));
-      for (let j = 0; j < mafiaList.length; j++) {
-        await mafiaList[j].dmChannel.send(
-          `${user.username}님이 ${
-            voteEmoji.indexOf(reaction.emoji.name) + 1
-          }번에 투표하셨습니다.`
-        );
-      }
     });
 
     if (mafiaList.length === 2) {
@@ -493,4 +486,173 @@ export async function Night_Mafia(
   return [msg, memberObjects, currentGamingGuildList, result];
 }
 
-export async function Night_Doctor() {}
+export async function Night_Doctor(
+  msg: Message,
+  memberObjects: memObject,
+  currentGamingGuildList: string[],
+  mafiaResult: number[]
+): Promise<
+  [
+    message: Message,
+    memberObjects: memObject,
+    currentGamingGuildList: string[],
+    mafiaResult: number[],
+    doctorResult: number
+  ]
+> {
+  await msg.channel.send("의사의 차례입니다.");
+  const doctor = memberObjects.find((member) => {
+    member.job == jobList.DOCTOR;
+  });
+
+  const embed = new EmbedBuilder({
+    title: "투표 (30초)",
+    description: "치료할 사람의 번호에 맞는 이모티콘을 눌러주세요.",
+  }).addFields(
+    memberObjects.map((member, i) => {
+      return { name: member.user.username, value: `${i + 1}번` };
+    })
+  );
+
+  const embeddedMessage = await doctor.dmChannel.send({ embeds: [embed] });
+  for (let i = 0; i < memberObjects.length; i++) {
+    await embeddedMessage.react(voteEmoji[i]);
+  }
+
+  const voteEmojiCollector = new ReactionCollector(embeddedMessage, {
+    filter: (reaction, user) => {
+      return voteEmoji.includes(reaction.emoji.name) && !user.bot;
+    },
+    time: 30000,
+    max: 1,
+    dispose: true,
+  });
+
+  const result = await new Promise<number>(async (resolve) => {
+    voteEmojiCollector.on("end", async (collected) => {
+      const result = voteEmoji.indexOf(collected.at(0).emoji.name);
+      resolve(result);
+    });
+  });
+
+  return [msg, memberObjects, currentGamingGuildList, mafiaResult, result];
+}
+
+export async function Night_Police(
+  msg: Message,
+  memberObjects: memObject,
+  currentGamingGuildList: string[],
+  mafiaResult: number[],
+  doctorResult: number
+): Promise<
+  [
+    message: Message,
+    memberObjects: memObject,
+    currentGamingGuildList: string[],
+    mafiaResult: number[],
+    doctorResult: number
+  ]
+> {
+  await msg.channel.send("경찰의 차례입니다.");
+  const police = memberObjects.find((member) => {
+    member.job == jobList.POLICE;
+  });
+
+  const embed = new EmbedBuilder({
+    title: "투표 (30초)",
+    description: "조사할 사람의 번호에 맞는 이모티콘을 눌러주세요.",
+  }).addFields(
+    memberObjects.map((member, i) => {
+      return { name: member.user.username, value: `${i + 1}번` };
+    })
+  );
+
+  const embeddedMessage = await police.dmChannel.send({ embeds: [embed] });
+  for (let i = 0; i < memberObjects.length; i++) {
+    await embeddedMessage.react(voteEmoji[i]);
+  }
+
+  const voteEmojiCollector = new ReactionCollector(embeddedMessage, {
+    filter: (reaction, user) => {
+      return voteEmoji.includes(reaction.emoji.name) && !user.bot;
+    },
+    time: 30000,
+    max: 1,
+    dispose: true,
+  });
+
+  await new Promise<Message>(async (resolve) => {
+    voteEmojiCollector.on("end", async (collected) => {
+      const result = voteEmoji.indexOf(collected.at(0).emoji.name);
+      if (
+        memberObjects[result].job == jobList.MAFIA_1 ||
+        memberObjects[result].job == jobList.MAFIA_2
+      ) {
+        resolve(
+          await police.dmChannel.send(
+            `${memberObjects[result].user.username}은(는) 마피아입니다.`
+          )
+        );
+      } else {
+        resolve(
+          await police.dmChannel.send(
+            `${memberObjects[result].user.username}은(는) 마피아가 아닙니다.`
+          )
+        );
+      }
+    });
+  });
+
+  return [
+    msg,
+    memberObjects,
+    currentGamingGuildList,
+    mafiaResult,
+    doctorResult,
+  ];
+}
+
+export async function reviveCheck(
+  msg: Message,
+  memberObjects: memObject,
+  currentGamingGuildList: string[],
+  mafiaResult: number[],
+  doctorResult: number
+): Promise<
+  [message: Message, memberObjects: memObject, currentGamingGuildList: string[]]
+> {
+  if (mafiaResult.length == 2) {
+    if (mafiaResult[0] == mafiaResult[1]) {
+      //투표가 같음
+      if (mafiaResult[0] == doctorResult) {
+        //치료 성공
+        await msg.channel.send("의사가 치료에 성공하였습니다.");
+      } else {
+        await msg.channel.send(
+          `${
+            memberObjects[mafiaResult[0]].user.username
+          }이(가) 마피아에게 살해당했습니다.`
+        );
+        memberObjects = memberObjects.filter((object) => {
+          return object != memberObjects[mafiaResult[0]];
+        });
+      }
+    } else await msg.channel.send("아무 일도 일어나지 않았습니다.");
+  } else if (mafiaResult.length == 1) {
+    if (mafiaResult[0] == doctorResult) {
+      //치료 성공
+      await msg.channel.send("의사가 치료에 성공하였습니다.");
+    } else {
+      await msg.channel.send(
+        `${
+          memberObjects[mafiaResult[0]].user.username
+        }이(가) 마피아에게 살해당했습니다.`
+      );
+      memberObjects = memberObjects.filter((object) => {
+        return object != memberObjects[mafiaResult[0]];
+      });
+    }
+  }
+
+  return [msg, memberObjects, currentGamingGuildList];
+}

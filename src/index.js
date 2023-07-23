@@ -54,6 +54,14 @@ client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, functi
                     else {
                         //게임 속행
                         const mafia = yield (0, game_1.Night_Mafia)(...checkResult);
+                        const doctor = yield (0, game_1.Night_Doctor)(...mafia);
+                        const police = yield (0, game_1.Night_Police)(...doctor);
+                        const reviveCheckResult = yield (0, game_1.reviveCheck)(...police);
+                        const checkResult_night = yield (0, game_1.checkFinish)(...reviveCheckResult);
+                        if (typeof checkResult_night === "boolean")
+                            isGaming = checkResult_night;
+                        else
+                            decideResult = checkResult_night;
                     }
                 }
             }

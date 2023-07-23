@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Night_Doctor = exports.Night_Mafia = exports.checkFinish = exports.Vote = exports.Day = exports.decideJob = exports.initGame = void 0;
+exports.reviveCheck = exports.Night_Police = exports.Night_Doctor = exports.Night_Mafia = exports.checkFinish = exports.Vote = exports.Day = exports.decideJob = exports.initGame = void 0;
 const discord_js_1 = require("discord.js");
 const MAX_PLAYERS = 2; //DEBUG 8
 const jobList = {
@@ -328,11 +328,8 @@ function Night_Mafia(msg, memberObjects, currentGamingGuildList) {
                     },
                 }));
             }
-            emojiCollectorList[i].on("collect", (reaction, user) => __awaiter(this, void 0, void 0, function* () {
+            emojiCollectorList[i].on("collect", (reaction, _user) => __awaiter(this, void 0, void 0, function* () {
                 votedAmount.push(voteEmoji.indexOf(reaction.emoji.name));
-                for (let j = 0; j < mafiaList.length; j++) {
-                    yield mafiaList[j].dmChannel.send(`${user.username}님이 ${voteEmoji.indexOf(reaction.emoji.name) + 1}번에 투표하셨습니다.`);
-                }
             }));
             if (mafiaList.length === 2) {
                 msgCollectorList[i].on("collect", (msg, _collection) => {
@@ -358,7 +355,118 @@ function Night_Mafia(msg, memberObjects, currentGamingGuildList) {
     });
 }
 exports.Night_Mafia = Night_Mafia;
-function Night_Doctor() {
-    return __awaiter(this, void 0, void 0, function* () { });
+function Night_Doctor(msg, memberObjects, currentGamingGuildList, mafiaResult) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield msg.channel.send("의사의 차례입니다.");
+        const doctor = memberObjects.find((member) => {
+            member.job == jobList.DOCTOR;
+        });
+        const embed = new discord_js_1.EmbedBuilder({
+            title: "투표 (30초)",
+            description: "치료할 사람의 번호에 맞는 이모티콘을 눌러주세요.",
+        }).addFields(memberObjects.map((member, i) => {
+            return { name: member.user.username, value: `${i + 1}번` };
+        }));
+        const embeddedMessage = yield doctor.dmChannel.send({ embeds: [embed] });
+        for (let i = 0; i < memberObjects.length; i++) {
+            yield embeddedMessage.react(voteEmoji[i]);
+        }
+        const voteEmojiCollector = new discord_js_1.ReactionCollector(embeddedMessage, {
+            filter: (reaction, user) => {
+                return voteEmoji.includes(reaction.emoji.name) && !user.bot;
+            },
+            time: 30000,
+            max: 1,
+            dispose: true,
+        });
+        const result = yield new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            voteEmojiCollector.on("end", (collected) => __awaiter(this, void 0, void 0, function* () {
+                const result = voteEmoji.indexOf(collected.at(0).emoji.name);
+                resolve(result);
+            }));
+        }));
+        return [msg, memberObjects, currentGamingGuildList, mafiaResult, result];
+    });
 }
 exports.Night_Doctor = Night_Doctor;
+function Night_Police(msg, memberObjects, currentGamingGuildList, mafiaResult, doctorResult) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield msg.channel.send("경찰의 차례입니다.");
+        const police = memberObjects.find((member) => {
+            member.job == jobList.POLICE;
+        });
+        const embed = new discord_js_1.EmbedBuilder({
+            title: "투표 (30초)",
+            description: "조사할 사람의 번호에 맞는 이모티콘을 눌러주세요.",
+        }).addFields(memberObjects.map((member, i) => {
+            return { name: member.user.username, value: `${i + 1}번` };
+        }));
+        const embeddedMessage = yield police.dmChannel.send({ embeds: [embed] });
+        for (let i = 0; i < memberObjects.length; i++) {
+            yield embeddedMessage.react(voteEmoji[i]);
+        }
+        const voteEmojiCollector = new discord_js_1.ReactionCollector(embeddedMessage, {
+            filter: (reaction, user) => {
+                return voteEmoji.includes(reaction.emoji.name) && !user.bot;
+            },
+            time: 30000,
+            max: 1,
+            dispose: true,
+        });
+        yield new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            voteEmojiCollector.on("end", (collected) => __awaiter(this, void 0, void 0, function* () {
+                const result = voteEmoji.indexOf(collected.at(0).emoji.name);
+                if (memberObjects[result].job == jobList.MAFIA_1 ||
+                    memberObjects[result].job == jobList.MAFIA_2) {
+                    resolve(yield police.dmChannel.send(`${memberObjects[result].user.username}은(는) 마피아입니다.`));
+                }
+                else {
+                    resolve(yield police.dmChannel.send(`${memberObjects[result].user.username}은(는) 마피아가 아닙니다.`));
+                }
+            }));
+        }));
+        return [
+            msg,
+            memberObjects,
+            currentGamingGuildList,
+            mafiaResult,
+            doctorResult,
+        ];
+    });
+}
+exports.Night_Police = Night_Police;
+function reviveCheck(msg, memberObjects, currentGamingGuildList, mafiaResult, doctorResult) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (mafiaResult.length == 2) {
+            if (mafiaResult[0] == mafiaResult[1]) {
+                //투표가 같음
+                if (mafiaResult[0] == doctorResult) {
+                    //치료 성공
+                    yield msg.channel.send("의사가 치료에 성공하였습니다.");
+                }
+                else {
+                    yield msg.channel.send(`${memberObjects[mafiaResult[0]].user.username}이(가) 마피아에게 살해당했습니다.`);
+                    memberObjects = memberObjects.filter((object) => {
+                        return object != memberObjects[mafiaResult[0]];
+                    });
+                }
+            }
+            else
+                yield msg.channel.send("아무 일도 일어나지 않았습니다.");
+        }
+        else if (mafiaResult.length == 1) {
+            if (mafiaResult[0] == doctorResult) {
+                //치료 성공
+                yield msg.channel.send("의사가 치료에 성공하였습니다.");
+            }
+            else {
+                yield msg.channel.send(`${memberObjects[mafiaResult[0]].user.username}이(가) 마피아에게 살해당했습니다.`);
+                memberObjects = memberObjects.filter((object) => {
+                    return object != memberObjects[mafiaResult[0]];
+                });
+            }
+        }
+        return [msg, memberObjects, currentGamingGuildList];
+    });
+}
+exports.reviveCheck = reviveCheck;
