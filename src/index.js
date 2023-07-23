@@ -14,7 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const discord_js_1 = require("discord.js");
 const auth_1 = __importDefault(require("./auth"));
-const game_1 = __importDefault(require("./game"));
+const game_1 = require("./game");
 const prefix = "!";
 let currentGamingGuildList = [];
 const client = new discord_js_1.Client({
@@ -39,7 +39,24 @@ client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, functi
     const content = message.content.replace("!", "").toLowerCase();
     switch (content) {
         case "시작":
-            (0, game_1.default)(client, message, currentGamingGuildList);
+            const initResult = yield (0, game_1.initGame)(client, message, currentGamingGuildList);
+            if (initResult) {
+                var decideResult = yield (0, game_1.decideJob)(...initResult);
+                var isGaming = true;
+                while (isGaming) {
+                    const dayResult = yield (0, game_1.Day)(...decideResult);
+                    const voteResult = yield (0, game_1.Vote)(...dayResult);
+                    const checkResult = yield (0, game_1.checkFinish)(...voteResult);
+                    if (typeof checkResult === "boolean") {
+                        //게임 끝
+                        isGaming = checkResult;
+                    }
+                    else {
+                        //게임 속행
+                        const mafia = yield (0, game_1.Night_Mafia)(...checkResult);
+                    }
+                }
+            }
             break;
         case "help":
         case "명령어":
