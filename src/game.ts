@@ -8,7 +8,7 @@ import {
   ReactionCollector,
 } from "discord.js";
 
-const MAX_PLAYERS = 2; //DEBUG
+const MAX_PLAYERS = 2; //DEBUG 8
 const jobList = {
   MAFIA_1: 1,
   MAFIA_2: 2,

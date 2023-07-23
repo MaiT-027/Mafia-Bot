@@ -11,7 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Night_Doctor = exports.Night_Mafia = exports.checkFinish = exports.Vote = exports.Day = exports.decideJob = exports.initGame = void 0;
 const discord_js_1 = require("discord.js");
-const MAX_PLAYERS = 2; //DEBUG
+const MAX_PLAYERS = 2; //DEBUG 8
 const jobList = {
     MAFIA_1: 1,
     MAFIA_2: 2,
