@@ -56,12 +56,13 @@ client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, functi
                         const mafia = yield (0, game_1.Night_Mafia)(...checkResult);
                         const doctor = yield (0, game_1.Night_Doctor)(...mafia);
                         const police = yield (0, game_1.Night_Police)(...doctor);
-                        const reviveCheckResult = yield (0, game_1.reviveCheck)(...police);
+                        const reviveCheckResult = yield (0, game_1.checkRevive)(...police);
                         const checkResult_night = yield (0, game_1.checkFinish)(...reviveCheckResult);
                         if (typeof checkResult_night === "boolean")
+                            //게임 끝
                             isGaming = checkResult_night;
                         else
-                            decideResult = checkResult_night;
+                            decideResult = checkResult_night; //게임 속행
                     }
                 }
             }

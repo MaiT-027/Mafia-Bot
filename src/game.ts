@@ -45,19 +45,19 @@ function timeout(time: number) {
 
 export async function initGame(
   client: Client,
-  message: Message,
+  msg: Message,
   currentGamingGuildList: string[]
 ) {
-  if (currentGamingGuildList.includes(message.guildId)) {
-    message.channel.send("서버에 이미 게임이 진행중입니다.");
+  if (currentGamingGuildList.includes(msg.guildId)) {
+    msg.channel.send("서버에 이미 게임이 진행중입니다.");
     return;
   }
 
-  const initMsg = await message.channel.send(
+  const initMsg = await msg.channel.send(
     "참가할 플레이어는 👍 이모티콘을 눌러주세요(30초)!"
   );
   initMsg.react("👍");
-  currentGamingGuildList.push(message.guildId);
+  currentGamingGuildList.push(msg.guildId);
 
   const collector = new ReactionCollector(initMsg, {
     filter: (reaction, user) => {
@@ -72,7 +72,7 @@ export async function initGame(
   });
 
   const membersID: string[] = [];
-  const memberListMsg = await message.channel.send("참가할 플레이어 목록 : ");
+  const memberListMsg = await msg.channel.send("참가할 플레이어 목록 : ");
 
   collector.on("collect", async (_reaction, user) => {
     membersID.push(user.id);
@@ -82,7 +82,7 @@ export async function initGame(
   const result = await new Promise<
     | [
         client: Client,
-        message: Message,
+        msg: Message,
         membersID: string[],
         currentGamingGuildList: string[]
       ]
@@ -90,17 +90,17 @@ export async function initGame(
   >(async (resolve) => {
     collector.on("end", async (collected) => {
       if (membersID.length == MAX_PLAYERS) {
-        message.channel.send("게임이 시작됩니다.");
-        console.log(`${message.guild.name} 서버에서 게임이 시작되었습니다.`);
-        resolve([client, message, membersID, currentGamingGuildList]);
+        msg.channel.send("게임이 시작됩니다.");
+        console.log(`${msg.guild.name} 서버에서 게임이 시작되었습니다.`);
+        resolve([client, msg, membersID, currentGamingGuildList]);
       } else {
-        message.channel.send(
+        msg.channel.send(
           `인원이 부족하여 게임을 시작할 수 없습니다. (${
             MAX_PLAYERS - collected.size
           }명 부족)`
         );
         currentGamingGuildList = currentGamingGuildList.filter(
-          (element) => element !== message.guildId
+          (element) => element !== msg.guildId
         );
         resolve();
       }
@@ -111,13 +111,13 @@ export async function initGame(
 
 export async function decideJob(
   client: Client,
-  message: Message,
+  msg: Message,
   membersID: string[],
   currentGamingGuildList: string[]
 ): Promise<
-  [message: Message, memberObjects: memObject, currentGamingGuildList: string[]]
+  [msg: Message, memberObjects: memObject, currentGamingGuildList: string[]]
 > {
-  let memberObjects: { user: User; job: number; dmChannel: DMChannel }[] = [];
+  let memberObjects: memObject = [];
   const rand_numbers = generateUniqueRandomNumbers(MAX_PLAYERS, MAX_PLAYERS);
   for (let i = 0; i < MAX_PLAYERS; i++) {
     const user = client.users.cache.get(membersID[i]);
@@ -162,28 +162,26 @@ export async function decideJob(
           .username
       }은(는) 마피아입니다.`
     );
-  message.channel.send(
-    "직업이 모두 결정되었습니다. 10초 후 게임이 시작됩니다."
-  );
+  msg.channel.send("직업이 모두 결정되었습니다. 10초 후 게임이 시작됩니다.");
 
   await timeout(START_TIME);
-  return [message, memberObjects, currentGamingGuildList];
+  return [msg, memberObjects, currentGamingGuildList];
 }
 
 export async function Day(
-  message: Message,
+  msg: Message,
   memberObjects: memObject,
   currentGamingGuildList: string[]
 ) {
-  await message.channel.send(
+  await msg.channel.send(
     "아침이 밝았습니다. 2분 동안 자유토론을 할 수 있습니다."
   );
-  await message.channel.send(
+  await msg.channel.send(
     "아침을 스킵하시려면 과반수 이상이 채팅에 '!스킵'을 입력해주세요."
   );
 
   let skipList: string[] = [];
-  const skipCollector = new MessageCollector(message.channel, {
+  const skipCollector = new MessageCollector(msg.channel, {
     filter: (msg, _collection) => {
       return (
         msg.content === "!스킵" &&
@@ -200,19 +198,15 @@ export async function Day(
 
   skipCollector.on("collect", (msg, _collection) => {
     skipList.push(msg.author.id);
-    message.channel.send(`${msg.author.username}님이 스킵에 찬성하셨습니다.`);
+    msg.channel.send(`${msg.author.username}님이 스킵에 찬성하셨습니다.`);
   });
 
   const result = await new Promise<
-    [
-      message: Message,
-      memberObjects: memObject,
-      currentGamingGuildList: string[]
-    ]
+    [msg: Message, memberObjects: memObject, currentGamingGuildList: string[]]
   >(async (resolve) => {
     skipCollector.on("end", async (_collected) => {
-      await message.channel.send("아침이 끝났습니다. 투표가 진행됩니다.");
-      resolve([message, memberObjects, currentGamingGuildList]);
+      await msg.channel.send("아침이 끝났습니다. 투표가 진행됩니다.");
+      resolve([msg, memberObjects, currentGamingGuildList]);
     });
   });
   return result;
@@ -287,17 +281,12 @@ export async function Vote(
   });
 
   const result = await new Promise<
-    [
-      message: Message,
-      memberObjects: memObject,
-      currentGamingGuildList: string[]
-    ]
+    [msg: Message, memberObjects: memObject, currentGamingGuildList: string[]]
   >(async (resolve) => {
     voteEmojiCollector.on("end", async (_collected) => {
       await msg.channel.send("투표 종료. 결과를 계산 중입니다...");
       let max_vote = 0;
-      let dropped_list: { user: User; job: number; dmChannel: DMChannel }[] =
-        [];
+      let dropped_list: memObject = [];
       for (let i = 0; i < memberObjects.length; i++) {
         if (votedAmount[i] > max_vote) {
           max_vote = votedAmount[i];
@@ -395,7 +384,7 @@ export async function Night_Mafia(
   currentGamingGuildList: string[]
 ): Promise<
   [
-    message: Message,
+    msg: Message,
     memberObjects: memObject,
     currentGamingGuildList: string[],
     mafiaVotedAmount: number[]
@@ -493,7 +482,7 @@ export async function Night_Doctor(
   mafiaResult: number[]
 ): Promise<
   [
-    message: Message,
+    msg: Message,
     memberObjects: memObject,
     currentGamingGuildList: string[],
     mafiaResult: number[],
@@ -546,7 +535,7 @@ export async function Night_Police(
   doctorResult: number
 ): Promise<
   [
-    message: Message,
+    msg: Message,
     memberObjects: memObject,
     currentGamingGuildList: string[],
     mafiaResult: number[],
@@ -612,14 +601,14 @@ export async function Night_Police(
   ];
 }
 
-export async function reviveCheck(
+export async function checkRevive(
   msg: Message,
   memberObjects: memObject,
   currentGamingGuildList: string[],
   mafiaResult: number[],
   doctorResult: number
 ): Promise<
-  [message: Message, memberObjects: memObject, currentGamingGuildList: string[]]
+  [msg: Message, memberObjects: memObject, currentGamingGuildList: string[]]
 > {
   if (mafiaResult.length == 2) {
     if (mafiaResult[0] == mafiaResult[1]) {

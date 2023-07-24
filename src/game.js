@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reviveCheck = exports.Night_Police = exports.Night_Doctor = exports.Night_Mafia = exports.checkFinish = exports.Vote = exports.Day = exports.decideJob = exports.initGame = void 0;
+exports.checkRevive = exports.Night_Police = exports.Night_Doctor = exports.Night_Mafia = exports.checkFinish = exports.Vote = exports.Day = exports.decideJob = exports.initGame = void 0;
 const discord_js_1 = require("discord.js");
 const MAX_PLAYERS = 2; //DEBUG 8
 const jobList = {
@@ -39,15 +39,15 @@ function timeout(time) {
         }, time);
     });
 }
-function initGame(client, message, currentGamingGuildList) {
+function initGame(client, msg, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (currentGamingGuildList.includes(message.guildId)) {
-            message.channel.send("서버에 이미 게임이 진행중입니다.");
+        if (currentGamingGuildList.includes(msg.guildId)) {
+            msg.channel.send("서버에 이미 게임이 진행중입니다.");
             return;
         }
-        const initMsg = yield message.channel.send("참가할 플레이어는 👍 이모티콘을 눌러주세요(30초)!");
+        const initMsg = yield msg.channel.send("참가할 플레이어는 👍 이모티콘을 눌러주세요(30초)!");
         initMsg.react("👍");
-        currentGamingGuildList.push(message.guildId);
+        currentGamingGuildList.push(msg.guildId);
         const collector = new discord_js_1.ReactionCollector(initMsg, {
             filter: (reaction, user) => {
                 return (reaction.emoji.name === "👍" &&
@@ -58,7 +58,7 @@ function initGame(client, message, currentGamingGuildList) {
             max: MAX_PLAYERS,
         });
         const membersID = [];
-        const memberListMsg = yield message.channel.send("참가할 플레이어 목록 : ");
+        const memberListMsg = yield msg.channel.send("참가할 플레이어 목록 : ");
         collector.on("collect", (_reaction, user) => __awaiter(this, void 0, void 0, function* () {
             membersID.push(user.id);
             memberListMsg.edit(memberListMsg.content + " " + user.username);
@@ -66,13 +66,13 @@ function initGame(client, message, currentGamingGuildList) {
         const result = yield new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
             collector.on("end", (collected) => __awaiter(this, void 0, void 0, function* () {
                 if (membersID.length == MAX_PLAYERS) {
-                    message.channel.send("게임이 시작됩니다.");
-                    console.log(`${message.guild.name} 서버에서 게임이 시작되었습니다.`);
-                    resolve([client, message, membersID, currentGamingGuildList]);
+                    msg.channel.send("게임이 시작됩니다.");
+                    console.log(`${msg.guild.name} 서버에서 게임이 시작되었습니다.`);
+                    resolve([client, msg, membersID, currentGamingGuildList]);
                 }
                 else {
-                    message.channel.send(`인원이 부족하여 게임을 시작할 수 없습니다. (${MAX_PLAYERS - collected.size}명 부족)`);
-                    currentGamingGuildList = currentGamingGuildList.filter((element) => element !== message.guildId);
+                    msg.channel.send(`인원이 부족하여 게임을 시작할 수 없습니다. (${MAX_PLAYERS - collected.size}명 부족)`);
+                    currentGamingGuildList = currentGamingGuildList.filter((element) => element !== msg.guildId);
                     resolve();
                 }
             }));
@@ -81,7 +81,7 @@ function initGame(client, message, currentGamingGuildList) {
     });
 }
 exports.initGame = initGame;
-function decideJob(client, message, membersID, currentGamingGuildList) {
+function decideJob(client, msg, membersID, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
         let memberObjects = [];
         const rand_numbers = generateUniqueRandomNumbers(MAX_PLAYERS, MAX_PLAYERS);
@@ -119,18 +119,18 @@ function decideJob(client, message, membersID, currentGamingGuildList) {
             .find((member) => member.job === jobList.MAFIA_2)
             .dmChannel.send(`${memberObjects.find((member) => member.job === jobList.MAFIA_1).user
             .username}은(는) 마피아입니다.`);
-        message.channel.send("직업이 모두 결정되었습니다. 10초 후 게임이 시작됩니다.");
+        msg.channel.send("직업이 모두 결정되었습니다. 10초 후 게임이 시작됩니다.");
         yield timeout(START_TIME);
-        return [message, memberObjects, currentGamingGuildList];
+        return [msg, memberObjects, currentGamingGuildList];
     });
 }
 exports.decideJob = decideJob;
-function Day(message, memberObjects, currentGamingGuildList) {
+function Day(msg, memberObjects, currentGamingGuildList) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield message.channel.send("아침이 밝았습니다. 2분 동안 자유토론을 할 수 있습니다.");
-        yield message.channel.send("아침을 스킵하시려면 과반수 이상이 채팅에 '!스킵'을 입력해주세요.");
+        yield msg.channel.send("아침이 밝았습니다. 2분 동안 자유토론을 할 수 있습니다.");
+        yield msg.channel.send("아침을 스킵하시려면 과반수 이상이 채팅에 '!스킵'을 입력해주세요.");
         let skipList = [];
-        const skipCollector = new discord_js_1.MessageCollector(message.channel, {
+        const skipCollector = new discord_js_1.MessageCollector(msg.channel, {
             filter: (msg, _collection) => {
                 return (msg.content === "!스킵" &&
                     !skipList.includes(msg.author.id) &&
@@ -143,12 +143,12 @@ function Day(message, memberObjects, currentGamingGuildList) {
         });
         skipCollector.on("collect", (msg, _collection) => {
             skipList.push(msg.author.id);
-            message.channel.send(`${msg.author.username}님이 스킵에 찬성하셨습니다.`);
+            msg.channel.send(`${msg.author.username}님이 스킵에 찬성하셨습니다.`);
         });
         const result = yield new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
             skipCollector.on("end", (_collected) => __awaiter(this, void 0, void 0, function* () {
-                yield message.channel.send("아침이 끝났습니다. 투표가 진행됩니다.");
-                resolve([message, memberObjects, currentGamingGuildList]);
+                yield msg.channel.send("아침이 끝났습니다. 투표가 진행됩니다.");
+                resolve([msg, memberObjects, currentGamingGuildList]);
             }));
         }));
         return result;
@@ -435,7 +435,7 @@ function Night_Police(msg, memberObjects, currentGamingGuildList, mafiaResult, d
     });
 }
 exports.Night_Police = Night_Police;
-function reviveCheck(msg, memberObjects, currentGamingGuildList, mafiaResult, doctorResult) {
+function checkRevive(msg, memberObjects, currentGamingGuildList, mafiaResult, doctorResult) {
     return __awaiter(this, void 0, void 0, function* () {
         if (mafiaResult.length == 2) {
             if (mafiaResult[0] == mafiaResult[1]) {
@@ -469,4 +469,4 @@ function reviveCheck(msg, memberObjects, currentGamingGuildList, mafiaResult, do
         return [msg, memberObjects, currentGamingGuildList];
     });
 }
-exports.reviveCheck = reviveCheck;
+exports.checkRevive = checkRevive;

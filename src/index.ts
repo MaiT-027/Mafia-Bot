@@ -1,12 +1,4 @@
-import {
-  Client,
-  Collection,
-  EmbedBuilder,
-  GatewayIntentBits,
-  Message,
-  MessageReaction,
-  ReactionCollector,
-} from "discord.js";
+import { Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
 import token from "./auth";
 import {
   initGame,
@@ -17,7 +9,7 @@ import {
   Night_Mafia,
   Night_Doctor,
   Night_Police,
-  reviveCheck,
+  checkRevive,
 } from "./game";
 
 const prefix = "!";
@@ -64,11 +56,12 @@ client.on("messageCreate", async (message) => {
             const mafia = await Night_Mafia(...checkResult);
             const doctor = await Night_Doctor(...mafia);
             const police = await Night_Police(...doctor);
-            const reviveCheckResult = await reviveCheck(...police);
+            const reviveCheckResult = await checkRevive(...police);
             const checkResult_night = await checkFinish(...reviveCheckResult);
             if (typeof checkResult_night === "boolean")
+              //게임 끝
               isGaming = checkResult_night;
-            else decideResult = checkResult_night;
+            else decideResult = checkResult_night; //게임 속행
           }
         }
       }
