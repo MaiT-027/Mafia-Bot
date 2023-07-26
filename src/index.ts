@@ -36,6 +36,7 @@ client.on("messageCreate", async (message) => {
 
   switch (content) {
     case "시작":
+    case "start":
       const initResult = await initGame(
         client,
         message,
@@ -69,7 +70,7 @@ client.on("messageCreate", async (message) => {
     case "help":
     case "명령어":
       const embed = new EmbedBuilder({ title: "명령어" }).addFields({
-        name: "시작",
+        name: "시작 | start",
         value: "게임을 시작합니다. 8명이 필요합니다.",
       });
       message.channel.send({ embeds: [embed] });

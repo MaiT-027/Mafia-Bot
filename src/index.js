@@ -39,6 +39,7 @@ client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, functi
     const content = message.content.replace("!", "").toLowerCase();
     switch (content) {
         case "시작":
+        case "start":
             const initResult = yield (0, game_1.initGame)(client, message, currentGamingGuildList);
             if (initResult) {
                 var decideResult = yield (0, game_1.decideJob)(...initResult);
@@ -70,7 +71,7 @@ client.on("messageCreate", (message) => __awaiter(void 0, void 0, void 0, functi
         case "help":
         case "명령어":
             const embed = new discord_js_1.EmbedBuilder({ title: "명령어" }).addFields({
-                name: "시작",
+                name: "시작 | start",
                 value: "게임을 시작합니다. 8명이 필요합니다.",
             });
             message.channel.send({ embeds: [embed] });
